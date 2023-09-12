@@ -1,0 +1,316 @@
+---
+title: "Pangolin Heatmap"
+author: "Ryan Harrigan"
+date: "9/11/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Libraries
+
+
+```{r}
+library(data.table)
+library(mapview)
+library(leaflet)
+library(sp)
+library(sf)
+library(KernSmooth)
+library(MASS)
+library(smoothr)
+library(viridis)
+
+```
+
+## Data input
+
+```{r}
+pangs=fread("data/pangolinseizure_input/PangHKsamples2.csv")
+pangs$LONG=jitter(pangs$LONG)
+pangs$LAT=jitter(pangs$LAT)
+pangs$YEAR=as.factor(pangs$YEAR)
+pangxy=matrix(pangs[,c(1,2)])
+panglocs=SpatialPointsDataFrame(coords=c(pangxy),data=pangs,proj4string=CRS("+proj=longlat +datum=WGS84"))
+plot(panglocs,pch=16,cex=0.5,col=pangs$YEAR)
+legend("bottomleft",legend=levels(pangs$YEAR), pch=16, col=unique(pangs$YEAR),xpd=TRUE)
+
+```
+
+```{r}
+pangIcon <- makeIcon(
+  iconUrl = "data/pangolinseizure_input/Pang.png",
+  iconWidth = 20, iconHeight = 10,
+)
+
+pangs=fread("data/pangolinseizure_input//PangHKsamples2.csv")
+pangsx=bw.SJ(pangs$LONG)
+pangsy=bw.SJ(pangs$LAT)
+
+X=cbind(pangs$LONG,pangs$LAT)
+kde <- bkde2D(X,bandwidth=c(pangsx,pangsy), gridsize = c(21,21))
+CL <- contourLines(kde$x1 , kde$x2 , kde$fhat)
+
+## EXTRACT CONTOUR LINE LEVELS
+LEVS <- as.factor(sapply(CL, `[[`, "level"))
+NLEV <- length(levels(LEVS))
+
+pangCol <- colorFactor(heat.colors(6), pangs$ORIGIN)
+
+## CONVERT CONTOUR LINES TO POLYGONS
+pgons <- lapply(1:length(CL), function(i)
+  Polygons(list(Polygon(cbind(CL[[i]]$x, CL[[i]]$y))), ID=i))
+spgons = SpatialPolygons(pgons)
+spgonss=smooth(spgons,method="ksmooth",smoothness=3)  
+## Leaflet map with polygons
+leaflet(spgonss) %>% addTiles() %>%
+  addProviderTiles("Esri.WorldGrayCanvas") %>%
+  addPolygons(color = plasma(NLEV, NULL)[LEVS])%>%
+addCircleMarkers(data=panglocs,radius=(3),color= ~pangCol(pangs$ORIGIN))%>%
+addLegend('bottomleft', pal = pangCol, values = pangs$ORIGIN,
+         title = 'Seizure Origin',
+       opacity = 1)
+```
+
+#Plots for 2012
+```{r}
+pangs=fread("data/pangolinseizure_input/PangHKsamples.csv")
+pangs=subset(pangs,pangs$YEAR==2012)
+pangsx=bw.SJ(pangs$LONG)
+pangsy=bw.SJ(pangs$LAT)
+  
+X=cbind(pangs$LONG,pangs$LAT)
+kde <- bkde2D(X,bandwidth=c(pangsx,pangsy), gridsize = c(21,21))
+CL <- contourLines(kde$x1 , kde$x2 , kde$fhat)
+  
+  ## EXTRACT CONTOUR LINE LEVELS
+LEVS <- as.factor(sapply(CL, `[[`, "level"))
+NLEV <- length(levels(LEVS))
+
+pangCol <- colorFactor(viridis(7), pangs$YEAR)
+  
+  ## CONVERT CONTOUR LINES TO POLYGONS
+pgons <- lapply(1:length(CL), function(i)
+Polygons(list(Polygon(cbind(CL[[i]]$x, CL[[i]]$y))), ID=i))
+spgons = SpatialPolygons(pgons)
+spgonss=smooth(spgons,method="ksmooth",smoothness=3)  
+  ## Leaflet map with polygons
+leaflet(spgonss) %>% addTiles() %>%
+addProviderTiles("Esri.WorldGrayCanvas") %>%
+addPolygons(color = plasma(NLEV, NULL)[LEVS])%>%
+addMarkers(data=pangs,icon=pangIcon)%>%
+setView(10,5,zoom=5)%>%
+addLegend('bottomleft', pal=pangCol, values=pangs$YEAR,
+            title = 'Seizure Year',
+           opacity = 1)
+#addCircleMarkers(data=panglocs,radius=(3),color= ~pangCol(pangs$YEAR))%>%
+#addLegend('bottomleft', pal = pangCol, values = pangs$YEAR,
+ #         title = 'Seizures by Year',
+#        opacity = 1)
+
+```
+
+#Plots for 2013
+```{r}
+pangs=fread("data/pangolinseizure_input/PangHKsamples.csv")
+pangs=subset(pangs,pangs$YEAR==2013)
+pangsx=bw.SJ(pangs$LONG)
+pangsy=bw.SJ(pangs$LAT)
+
+X=cbind(pangs$LONG,pangs$LAT)
+kde <- bkde2D(X,bandwidth=c(pangsx,pangsy), gridsize = c(21,21))
+CL <- contourLines(kde$x1 , kde$x2 , kde$fhat)
+
+## EXTRACT CONTOUR LINE LEVELS
+LEVS <- as.factor(sapply(CL, `[[`, "level"))
+NLEV <- length(levels(LEVS))
+
+pangCol <- colorFactor(viridis(7), pangs$YEAR)
+
+## CONVERT CONTOUR LINES TO POLYGONS
+pgons <- lapply(1:length(CL), function(i)
+  Polygons(list(Polygon(cbind(CL[[i]]$x, CL[[i]]$y))), ID=i))
+spgons = SpatialPolygons(pgons)
+spgonss=smooth(spgons,method="ksmooth",smoothness=3)  
+## Leaflet map with polygons
+leaflet(spgonss) %>% addTiles() %>%
+  addProviderTiles("Esri.WorldGrayCanvas") %>%
+  addPolygons(color = plasma(NLEV, NULL)[LEVS])%>%
+  addMarkers(data=pangs,icon=pangIcon)%>%
+  setView(10,5,zoom=5)%>%
+  addLegend('bottomleft', pal=pangCol, values=pangs$YEAR,
+            title = 'Seizure Year',
+            opacity = 1)#
+#
+#
+```
+
+Plots in 2014
+```{r}
+pangs=fread("data/pangolinseizure_input/PangHKsamples.csv")
+pangs=subset(pangs,pangs$YEAR==2014)
+pangsx=bw.SJ(pangs$LONG)
+pangsy=bw.SJ(pangs$LAT)
+
+X=cbind(pangs$LONG,pangs$LAT)
+kde <- bkde2D(X,bandwidth=c(pangsx,pangsy), gridsize = c(21,21))
+CL <- contourLines(kde$x1 , kde$x2 , kde$fhat)
+
+## EXTRACT CONTOUR LINE LEVELS
+LEVS <- as.factor(sapply(CL, `[[`, "level"))
+NLEV <- length(levels(LEVS))
+
+pangCol <- colorFactor(viridis(7), pangs$YEAR)
+
+## CONVERT CONTOUR LINES TO POLYGONS
+pgons <- lapply(1:length(CL), function(i)
+  Polygons(list(Polygon(cbind(CL[[i]]$x, CL[[i]]$y))), ID=i))
+spgons = SpatialPolygons(pgons)
+spgonss=smooth(spgons,method="ksmooth",smoothness=3)  
+## Leaflet map with polygons
+leaflet(spgonss) %>% addTiles() %>%
+  addProviderTiles("Esri.WorldGrayCanvas") %>%
+  addPolygons(color = plasma(NLEV, NULL)[LEVS])%>%
+  addMarkers(data=pangs,icon=pangIcon)%>%
+  setView(10,5,zoom=5)%>%
+  addLegend('bottomleft', pal=pangCol, values=pangs$YEAR,
+            title = 'Seizure Year',
+            opacity = 1)
+#
+```
+
+Plots of 2015
+```{r}
+pangs=fread("data/pangolinseizure_input/PangHKsamples.csv")
+pangs=subset(pangs,pangs$YEAR==2015)
+pangsx=bw.SJ(pangs$LONG)
+pangsy=bw.SJ(pangs$LAT)
+
+X=cbind(pangs$LONG,pangs$LAT)
+kde <- bkde2D(X,bandwidth=c(pangsx,pangsy), gridsize = c(21,21))
+CL <- contourLines(kde$x1 , kde$x2 , kde$fhat)
+
+## EXTRACT CONTOUR LINE LEVELS
+LEVS <- as.factor(sapply(CL, `[[`, "level"))
+NLEV <- length(levels(LEVS))
+
+pangCol <- colorFactor(viridis(7), pangs$YEAR)
+
+## CONVERT CONTOUR LINES TO POLYGONS
+pgons <- lapply(1:length(CL), function(i)
+  Polygons(list(Polygon(cbind(CL[[i]]$x, CL[[i]]$y))), ID=i))
+spgons = SpatialPolygons(pgons)
+spgonss=smooth(spgons,method="ksmooth",smoothness=3)  
+## Leaflet map with polygons
+leaflet(spgonss) %>% addTiles() %>%
+  addProviderTiles("Esri.WorldGrayCanvas") %>%
+  addPolygons(color = plasma(NLEV, NULL)[LEVS])%>%
+  addMarkers(data=pangs,icon=pangIcon)%>%
+  setView(10,5,zoom=5)%>%
+  addLegend('bottomleft', pal=pangCol, values=pangs$YEAR,
+            title = 'Seizure Year',
+            opacity = 1)
+
+```
+
+Plots for 2016
+```{r}
+pangs=fread("data/pangolinseizure_input/PangHKsamples.csv")
+pangs=subset(pangs,pangs$YEAR==2016)
+pangsx=bw.SJ(pangs$LONG)
+pangsy=bw.SJ(pangs$LAT)
+
+X=cbind(pangs$LONG,pangs$LAT)
+kde <- bkde2D(X,bandwidth=c(pangsx,pangsy), gridsize = c(21,21))
+CL <- contourLines(kde$x1 , kde$x2 , kde$fhat)
+
+## EXTRACT CONTOUR LINE LEVELS
+LEVS <- as.factor(sapply(CL, `[[`, "level"))
+NLEV <- length(levels(LEVS))
+
+pangCol <- colorFactor(viridis(7), pangs$YEAR)
+
+## CONVERT CONTOUR LINES TO POLYGONS
+pgons <- lapply(1:length(CL), function(i)
+  Polygons(list(Polygon(cbind(CL[[i]]$x, CL[[i]]$y))), ID=i))
+spgons = SpatialPolygons(pgons)
+spgonss=smooth(spgons,method="ksmooth",smoothness=3)  
+## Leaflet map with polygons
+leaflet(spgonss) %>% addTiles() %>%
+  addProviderTiles("Esri.WorldGrayCanvas") %>%
+  addPolygons(color = plasma(NLEV, NULL)[LEVS])%>%
+  addMarkers(data=pangs,icon=pangIcon)%>%
+  setView(10,5,zoom=5)%>%
+  addLegend('bottomleft', pal=pangCol, values=pangs$YEAR,
+            title = 'Seizure Year',
+            opacity = 1)
+```
+
+Plots for 2017
+```{r}
+pangs=fread("data/pangolinseizure_input/PangHKsamples.csv")
+pangs=subset(pangs,pangs$YEAR==2017)
+pangsx=bw.SJ(pangs$LONG)
+pangsy=bw.SJ(pangs$LAT)
+
+X=cbind(pangs$LONG,pangs$LAT)
+kde <- bkde2D(X,bandwidth=c(pangsx,pangsy), gridsize = c(21,21))
+CL <- contourLines(kde$x1 , kde$x2 , kde$fhat)
+
+## EXTRACT CONTOUR LINE LEVELS
+LEVS <- as.factor(sapply(CL, `[[`, "level"))
+NLEV <- length(levels(LEVS))
+
+pangCol <- colorFactor(viridis(7), pangs$YEAR)
+
+## CONVERT CONTOUR LINES TO POLYGONS
+pgons <- lapply(1:length(CL), function(i)
+  Polygons(list(Polygon(cbind(CL[[i]]$x, CL[[i]]$y))), ID=i))
+spgons = SpatialPolygons(pgons)
+spgonss=smooth(spgons,method="ksmooth",smoothness=3)  
+## Leaflet map with polygons
+leaflet(spgonss) %>% addTiles() %>%
+  addProviderTiles("Esri.WorldGrayCanvas") %>%
+  addPolygons(color = plasma(NLEV, NULL)[LEVS])%>%
+  addMarkers(data=pangs,icon=pangIcon)%>%
+  setView(10,5,zoom=5)%>%
+  addLegend('bottomleft', pal=pangCol, values=pangs$YEAR,
+            title = 'Seizure Year',
+            opacity = 1)
+```
+
+Plots for 2018
+```{r}
+pangs=fread("data/pangolinseizure_input/PangHKsamples.csv")
+pangs=subset(pangs,pangs$YEAR==2018)
+pangsx=bw.SJ(pangs$LONG)
+pangsy=bw.SJ(pangs$LAT)
+
+X=cbind(pangs$LONG,pangs$LAT)
+kde <- bkde2D(X,bandwidth=c(pangsx,pangsy), gridsize = c(21,21))
+CL <- contourLines(kde$x1 , kde$x2 , kde$fhat)
+
+## EXTRACT CONTOUR LINE LEVELS
+LEVS <- as.factor(sapply(CL, `[[`, "level"))
+NLEV <- length(levels(LEVS))
+
+pangCol <- colorFactor(viridis(7), pangs$YEAR)
+
+## CONVERT CONTOUR LINES TO POLYGONS
+pgons <- lapply(1:length(CL), function(i)
+  Polygons(list(Polygon(cbind(CL[[i]]$x, CL[[i]]$y))), ID=i))
+spgons = SpatialPolygons(pgons)
+spgonss=smooth(spgons,method="ksmooth",smoothness=3)  
+## Leaflet map with polygons
+leaflet(spgonss) %>% addTiles() %>%
+  addProviderTiles("Esri.WorldGrayCanvas") %>%
+  addPolygons(color = plasma(NLEV, NULL)[LEVS])%>%
+  addMarkers(data=pangs,icon=pangIcon)%>%
+  setView(10,5,zoom=5)%>%
+  addLegend('bottomleft', pal=pangCol, values=pangs$YEAR,
+            title = 'Seizure Year',
+            opacity = 1)
+
+```
